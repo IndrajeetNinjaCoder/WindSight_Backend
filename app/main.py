@@ -1,3 +1,5 @@
+
+import os
 from datetime import date, datetime, timezone
 
 from fastapi import FastAPI, HTTPException, Query
@@ -5,7 +7,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.schemas import AnalysisResponse, Metrics
 from app.services.analytics import build_analysis
-from app.services.elexon import ElexonAPIError, fetch_actuals, fetch_forecasts
+from app.services.elexon import (
+    ElexonAPIError,
+    fetch_actuals,
+    fetch_forecasts,
+)
 
 app = FastAPI(
     title="WindSight API",
@@ -13,15 +19,25 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# For local development. Set FRONTEND_ORIGIN to your deployed frontend URL later.
-import os
+# Allow the deployed frontend and local development environments.
+allowed_origins = [
+    "https://windsight-frontend.onrender.com",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
 
-frontend_origin = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
+# Also allow a custom frontend origin configured in Render.
+frontend_origin = os.getenv("FRONTEND_ORIGIN")
+if frontend_origin:
+    frontend_origin = frontend_origin.rstrip("/")
+    if frontend_origin not in allowed_origins:
+        allowed_origins.append(frontend_origin)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[frontend_origin, "http://127.0.0.1:5173"],
+    allow_origins=allowed_origins,
     allow_credentials=False,
-    allow_methods=["GET"],
+    allow_methods=["GET", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -34,7 +50,8 @@ async def health():
 @app.get("/api/analysis", response_model=AnalysisResponse)
 async def get_analysis(
     delivery_date: date = Query(
-        ..., description="Delivery date in January 2026, YYYY-MM-DD"
+        ...,
+        description="Delivery date in January 2026, YYYY-MM-DD",
     ),
     decision_cutoff: datetime = Query(
         ...,
@@ -82,7 +99,6 @@ async def get_analysis(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
-        # Keep detailed exceptions in server logs, not the public response.
         print(f"Unexpected analysis error: {exc}")
         raise HTTPException(
             status_code=500,
