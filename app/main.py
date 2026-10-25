@@ -22,8 +22,8 @@ app = FastAPI(
 # Allow the deployed frontend and local development environments.
 allowed_origins = [
     "https://windsight-frontend.onrender.com",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://localhost:5174",
 ]
 
 # Also allow a custom frontend origin configured in Render.
